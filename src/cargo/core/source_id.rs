@@ -533,6 +533,20 @@ impl SourceId {
         url == CRATES_IO_INDEX || url == CRATES_IO_HTTP_INDEX || is_overridden_crates_io_url(url)
     }
 
+    pub fn hashed_path(&self,  workspace: &Path) -> String {
+        if self.is_path() {
+            if let Ok(p) = self
+            .inner
+            .url
+            .to_file_path()
+            .unwrap()
+            .strip_prefix(workspace) {
+                return p.to_str().unwrap().to_string();
+            }
+        }
+        return format!("####XXXX#####");
+    }
+
     /// Hashes `self`.
     ///
     /// For paths, remove the workspace prefix so the same source will give the
