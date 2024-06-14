@@ -589,6 +589,7 @@ fn compute_metadata(
         hasher.finish(),
         unit.pkg.name().to_string()
     );
+    let mut last_hash = hasher.finish();
 
     // Unique metadata per (name, source, version) triple. This'll allow us
     // to pull crates from anywhere without worrying about conflicts.
@@ -597,7 +598,6 @@ fn compute_metadata(
         .stable_hash(bcx.ws.root())
         .hash(&mut hasher);
     
-    let mut last_hash = hasher.finish();
     let stable_hash_ = unit.pkg.package_id().stable_hash(bcx.ws.root());
     println!("1. (name, source, version):  \
         \n (name, source, version): {} \
@@ -648,11 +648,11 @@ fn compute_metadata(
     // settings like debuginfo and whatnot.
     unit.profile.hash(&mut hasher);
     println!("4. profile:\
-        profile: {},\
+        \n profile: {},\
         \n Hash: {} -> {}\
         Unit: {}", 
-        last_hash,
         unit.profile,
+        last_hash,
         hasher.finish(),
         unit.pkg.name().to_string()
     );

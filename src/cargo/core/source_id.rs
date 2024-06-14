@@ -544,7 +544,7 @@ impl SourceId {
                 return p.to_str().unwrap().to_string();
             }
         }
-        return format!("####XXXX#####");
+        return format!("{:?}", self.clone());
     }
 
     /// Hashes `self`.
