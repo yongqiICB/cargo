@@ -200,6 +200,19 @@ impl PackageId {
 
 pub struct PackageIdStableHash<'a>(PackageId, &'a Path);
 
+impl<'a> fmt::Display for PackageIdStableHash<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "PackageIdStableHash:\
+        \n name: {}\
+        \n version: {:?}\
+        \n source_id(but not final salt): {}",
+        self.0.inner.name.as_str(), 
+        self.0.inner.version,
+        self.0.inner.source_id.hashed_path(self.1)
+        )
+    }
+}
+
 impl<'a> Hash for PackageIdStableHash<'a> {
     fn hash<S: hash::Hasher>(&self, state: &mut S) {
         self.0.inner.name.hash(state);

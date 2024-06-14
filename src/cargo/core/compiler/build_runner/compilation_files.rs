@@ -580,6 +580,15 @@ fn compute_metadata(
     let mut hasher = StableHasher::new();
 
     METADATA_VERSION.hash(&mut hasher);
+    
+    println!("0.metadata_version:\
+        \n metadata_version: {}\
+        \n Hash: {}\
+        \n unit: {}",
+        METADATA_VERSION, 
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
 
     // Unique metadata per (name, source, version) triple. This'll allow us
     // to pull crates from anywhere without worrying about conflicts.
@@ -587,10 +596,33 @@ fn compute_metadata(
         .package_id()
         .stable_hash(bcx.ws.root())
         .hash(&mut hasher);
-
+    
+    let mut last_hash = hasher.finish();
+    let stable_hash_ = unit.pkg.package_id().stable_hash(bcx.ws.root());
+    println!("1. (name, source, version):  \
+        \n (name, source, version): {} \
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        stable_hash_,
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
     // Also mix in enabled features to our metadata. This'll ensure that
     // when changing feature sets each lib is separately cached.
     unit.features.hash(&mut hasher);
+
+    println!("2. features: \
+        \n feature: {:?} \
+        \n Hash: {} -> {}\
+        \n Unit: {}", 
+        unit.features, 
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
 
     // Mix in the target-metadata of all the dependencies of this target.
     let mut deps_metadata = build_runner
@@ -600,13 +632,56 @@ fn compute_metadata(
         .collect::<Vec<_>>();
     deps_metadata.sort();
     deps_metadata.hash(&mut hasher);
+    println!("3. deps_metadata:\
+        \n  deps_metadata: {:?}\
+        \n Hash: {} -> {}\
+        \n  Unit: {}",
+        deps_metadata,
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
 
     // Throw in the profile we're compiling with. This helps caching
     // `panic=abort` and `panic=unwind` artifacts, additionally with various
     // settings like debuginfo and whatnot.
     unit.profile.hash(&mut hasher);
+    println!("4. profile:\
+        profile: {},\
+        \n Hash: {} -> {}\
+        Unit: {}", 
+        last_hash,
+        unit.profile,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
+
     unit.mode.hash(&mut hasher);
+    println!("5. mode:\
+        \n  mode: {:?},\
+        \n Hash: {} -> {}\
+        \n  Unit: {}", 
+        unit.mode,
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
+
     build_runner.lto[unit].hash(&mut hasher);
+    println!("6. build_runner.lto[unit]:\
+        \n  build_runner.lto[unit]: {:?}\
+        \n Hash: {} -> {}\
+        \n  Unit: {}",
+        build_runner.lto[unit],
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
+
 
     // Artifacts compiled for the host should have a different
     // metadata piece than those compiled for the target, so make sure
@@ -614,19 +689,59 @@ fn compute_metadata(
     // so that the StableHash doesn't change based on the pathnames
     // of the custom target JSON spec files.
     unit.kind.fingerprint_hash().hash(&mut hasher);
+    println!("7. unit.kind:\
+        \n unit.kind.fingerprint_hash(): {:?}\
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        unit.kind.fingerprint_hash(),
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
 
     // Finally throw in the target name/kind. This ensures that concurrent
     // compiles of targets in the same crate don't collide.
     unit.target.name().hash(&mut hasher);
+    println!("8. target.name:\
+        \n unit.target.name(): {}\
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        unit.target.name(),
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
+
     unit.target.kind().hash(&mut hasher);
+    println!("9. unit.target.kind():\
+        \n unit.target.kind(): {:?}\
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        unit.target.kind(),
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
 
     hash_rustc_version(bcx, &mut hasher);
+    println!("10. hash_rustc_version:\
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+    last_hash = hasher.finish();
 
     if build_runner.bcx.ws.is_member(&unit.pkg) {
         // This is primarily here for clippy. This ensures that the clippy
         // artifacts are separate from the `check` ones.
         if let Some(path) = &build_runner.bcx.rustc().workspace_wrapper {
             path.hash(&mut hasher);
+            println!("clippy {}", hasher.finish());
         }
     }
 
@@ -638,6 +753,7 @@ fn compute_metadata(
         .get_env("__CARGO_DEFAULT_LIB_METADATA")
     {
         channel.hash(&mut hasher);
+        println!("channel.hash {}", hasher.finish());
     }
 
     // std units need to be kept separate from user dependencies. std crates
@@ -648,6 +764,21 @@ fn compute_metadata(
     // `is_std` to false for build dependencies so that they can be shared
     // with user dependencies.
     unit.is_std.hash(&mut hasher);
+    println!("11. unit.is_std:\
+        \n unit.is_std: {}\
+        \n Hash: {} -> {}\
+        \n Unit: {}",
+        unit.is_std,
+        last_hash,
+        hasher.finish(),
+        unit.pkg.name().to_string()
+    );
+
+    println!("FINAL HASH:\
+    \n Hash: {:016x} = {}\
+    \n Unit: {}",
+    hasher.finish(), hasher.finish(),
+    unit.pkg.name().to_string());
 
     MetaInfo {
         meta_hash: Metadata(hasher.finish()),
